@@ -22,7 +22,7 @@ bsachgpt<-function(X,Y,kmax,c1,m1,delta){
   g = sample(c(0,1), 100, replace = TRUE)
   fit = glmnet(x, g, family = "binomial")
   print("Passed first glmnet")
-  print(paste(fit, "is the fit solution"))
+  
   #1.Initialize T to the tree with a single root node labeled by (0; 1].
   n<-length(Y)
   v=length(Y)
