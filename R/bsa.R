@@ -98,19 +98,18 @@ bsachgpt<-function(X,Y,kmax,c1,m1,delta){
 #' @export
 #' @importFrom MASS mvrnorm
 #' @importFrom stats rbinom rnorm runif
-bsawrapper<-function(){
+bsawrapper<-function(n, p, Sigma, kmax){
   #=================== initial settings====================
-  n=200       # sample size 
-  p=10    # data dimension
-  sigma<-matrix(0,nrow = p,ncol = p)   #covariance matrix 
-  for (i in 1:p){
-    for (j in 1:p){
-      sigma[i,j]<-0.6^(abs(i-j))
-    }
-  }
+  # n=200       # sample size 
+  # p=10    # data dimension
+  # Sigma<-matrix(0,nrow = p,ncol = p)   #covariance matrix 
+  # for (i in 1:p){
+  #   for (j in 1:p){
+  #     Sigma[i,j]<-0.6^(abs(i-j))
+  #   }
+  # }
   tau0<-0.5  # true change point location
-  tr<- 10^{-6} 
-  kmax=6   # upper bound of the number of change point
+  # kmax=6   # upper bound of the number of change point
   #==== tuning parameter(specifed by users)==========
   delta=0.1  # the shortest length of intervals
   c1<-0.18 # lambda related parameter
@@ -130,7 +129,7 @@ bsawrapper<-function(){
     beta2[i]<-runif(1,min=0,max=2)+runif(1,min=0.5,max=signaljump)
   }
 
-  X<-mvrnorm(n,rep(0,p),sigma)  # design matrix
+  X<-mvrnorm(n,rep(0,p),Sigma)  # design matrix
   error<-rnorm(n)      # error term
   Y1<-vector(mode = "numeric",length=0L)  # response variable before change point
   Y2<-vector(mode = "numeric",length=0L)  # response variable after change point
