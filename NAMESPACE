@@ -2,6 +2,7 @@
 
 export(bsachgpt)
 export(bsawrapper)
+export(bsawrapper1)
 importFrom(MASS,mvrnorm)
 importFrom(glmnet,glmnet)
 importFrom(stats,coef)

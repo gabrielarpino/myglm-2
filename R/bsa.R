@@ -98,7 +98,7 @@ bsachgpt<-function(X,Y,kmax,c1,m1,delta){
 #' @export
 #' @importFrom MASS mvrnorm
 #' @importFrom stats rbinom rnorm runif
-bsawrapper<-function(n, p, Sigma, kmax){
+bsawrapper<-function(n, p, Sigma, kmax, delta){
   #=================== initial settings====================
   # n=200       # sample size 
   # p=10    # data dimension
@@ -111,7 +111,8 @@ bsawrapper<-function(n, p, Sigma, kmax){
   tau0<-0.5  # true change point location
   # kmax=6   # upper bound of the number of change point
   #==== tuning parameter(specifed by users)==========
-  delta=0.1  # the shortest length of intervals
+  # delta=0.1  # fractional length of the shortest interval 
+  # (i.e. distance between nearest adjacent changepoints as a fraction of n)
   c1<-0.18 # lambda related parameter
   #===============signal jump size==================
   m1=ceiling(n*delta)   # size of the shortest interval
@@ -146,6 +147,43 @@ bsawrapper<-function(n, p, Sigma, kmax){
 
   Y=c(Y1,Y2)   # response variable 
 
+
+  #=======estimate change points by bsa=======
+  reg<-bsachgpt(X,Y,kmax,c1,m1,delta)
+  cpnumber<-reg$cpnumber.estimator
+  cplocation<-reg$cplocation.estimator
+  #=========output==========
+  print(cpnumber)
+  print(cplocation)
+  list<-list(cpnumber=cpnumber,cplocation=cplocation)
+  return(list)
+}
+
+
+
+#' This function wraps around bsachgpt.
+#' @export
+#' @importFrom MASS mvrnorm
+#' @importFrom stats rbinom rnorm runif
+bsawrapper1<-function(X, Y, kmax, delta){
+  #=================== initial settings====================
+  # n=200       # sample size 
+  # p=10    # data dimension
+  # Sigma<-matrix(0,nrow = p,ncol = p)   #covariance matrix 
+  # for (i in 1:p){
+  #   for (j in 1:p){
+  #     Sigma[i,j]<-0.6^(abs(i-j))
+  #   }
+  # }
+  n<-length(Y)
+  tau0<-0.5  # true change point location
+  # kmax=6   # upper bound of the number of change point
+  #==== tuning parameter(specifed by users)==========
+  # delta=0.1  # fractional length of the shortest interval 
+  # (i.e. distance between nearest adjacent changepoints as a fraction of n)
+  c1<-0.18 # lambda related parameter
+  #===============signal jump size==================
+  m1=ceiling(n*delta)   # size of the shortest interval
 
   #=======estimate change points by bsa=======
   reg<-bsachgpt(X,Y,kmax,c1,m1,delta)
