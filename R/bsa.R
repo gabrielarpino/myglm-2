@@ -22,6 +22,7 @@ bsachgpt<-function(X,Y,kmax,c1,m1,delta){
   g = sample(c(0,1), 100, replace = TRUE)
   fit = glmnet(x, g, family = "binomial")
   print("Passed first glmnet")
+  print(paste(fit, "is the fit solution"))
   #1.Initialize T to the tree with a single root node labeled by (0; 1].
   n<-length(Y)
   v=length(Y)
@@ -43,19 +44,23 @@ bsachgpt<-function(X,Y,kmax,c1,m1,delta){
         hs[1:(alpha[i]+m1)]<-rep(10000,(alpha[i]+m1))
         betahat33<-matrix(0,nrow =(alpha[i+1]-m1),ncol = p)
         betahat55<-matrix(0,nrow =(alpha[i+1]-m1),ncol = p)
-        
+        print("Reached 1/3 glmnet in bsa")
         betahat22<-as.vector(coef(glmnet(X[alpha[i]:s,],Y[alpha[i]:s],intercept=FALSE,
                                          family="binomial"),s=c1*(sqrt(2*log(2*p)/(s-alpha[i]+1))+log(2*p)/(s-alpha[i]+1)))) # the estimation of regression coefficients
+        print("Passed 1/3 glmnet in bsa")
         betahat33[s,]<-betahat22[-1]
+        print("Reached 2/3 glmnet in bsa")
         betahat44<-as.vector(coef(glmnet(X[(s+1):(alpha[i+1]),],Y[(s+1):(alpha[i+1])],
                                          intercept=FALSE,family="binomial"),
                                   s=c1*(sqrt(2*log(2*p)/(alpha[i+1]-s))+log(2*p)/(alpha[i+1]-s))))
+        print("Passed 2/3 glmnet in bsa")
         betahat55[s,]<-betahat44[-1]
         
         I<-rep(1,(alpha[i+1]-alpha[i]+1))
+        print("Reached 3/3 glmnet in bsa")
         betahat66<-as.vector(coef(glmnet(X[alpha[i]:alpha[i+1],],Y[alpha[i]:alpha[i+1]],
                                          intercept=FALSE,family="binomial"),s=c1*(sqrt(2*log(2*p)/(alpha[i+1]-alpha[i]+1))+log(2*p)/(alpha[i+1]-alpha[i]+1))))   # the estimation of regression coefficients
-        
+        print("Passed 3/3 glmnet in bsa")
         hs[alpha[i]]<-sum(log(I+exp(X[alpha[i]:alpha[i+1],]%*%betahat66[-1]))-Y[alpha[i]:alpha[i+1]]*(X[alpha[i]:alpha[i+1],]%*%betahat66[-1]))/n
         +delta*c1*(sqrt(2*log(2*p)/(alpha[i+1]-alpha[i]+1))+log(2*p)/(alpha[i+1]-alpha[i]+1))
         
