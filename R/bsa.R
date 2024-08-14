@@ -14,6 +14,7 @@ library(MASS)
 #'   change point locations.
 #' @importFrom stats coef
 #' @importFrom glmnet glmnet
+#' @importFrom glmnet data
 
 ######## change point estimation by bsa ########
 bsachgpt<-function(X,Y,kmax,c1,m1,delta){
