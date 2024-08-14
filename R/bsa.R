@@ -6,13 +6,14 @@ library(MASS)
 #' @export
 #' @param X an n*p data matrix, n=observation, p=dimension
 #' @param Y an n dimensional data vector, n=observation
-#' @param Kmax the maximum change point number.
+#' @param kmax the maximum change point number.
 #' @param c1 a constant specified by users.
 #' @param m1 the sample size of the minimal interval.
 #' @param delta the minimal interval length specified by users.
 #' @return  A list including: the estimated change point number, the estimated
 #'   change point locations.
-#' 
+#' @importFrom stats coef
+#' @importFrom glmnet glmnet
 
 ######## change point estimation by bsa ########
 bsachgpt<-function(X,Y,kmax,c1,m1,delta){
@@ -38,16 +39,16 @@ bsachgpt<-function(X,Y,kmax,c1,m1,delta){
         betahat33<-matrix(0,nrow =(alpha[i+1]-m1),ncol = p)
         betahat55<-matrix(0,nrow =(alpha[i+1]-m1),ncol = p)
         
-        betahat22<-as.vector(coef(glmnet::glmnet(X[alpha[i]:s,],Y[alpha[i]:s],intercept=FALSE,
+        betahat22<-as.vector(coef(glmnet(X[alpha[i]:s,],Y[alpha[i]:s],intercept=FALSE,
                                          family="binomial"),s=c1*(sqrt(2*log(2*p)/(s-alpha[i]+1))+log(2*p)/(s-alpha[i]+1)))) # the estimation of regression coefficients
         betahat33[s,]<-betahat22[-1]
-        betahat44<-as.vector(coef(glmnet::glmnet(X[(s+1):(alpha[i+1]),],Y[(s+1):(alpha[i+1])],
+        betahat44<-as.vector(coef(glmnet(X[(s+1):(alpha[i+1]),],Y[(s+1):(alpha[i+1])],
                                          intercept=FALSE,family="binomial"),
                                   s=c1*(sqrt(2*log(2*p)/(alpha[i+1]-s))+log(2*p)/(alpha[i+1]-s))))
         betahat55[s,]<-betahat44[-1]
         
         I<-rep(1,(alpha[i+1]-alpha[i]+1))
-        betahat66<-as.vector(coef(glmnet::glmnet(X[alpha[i]:alpha[i+1],],Y[alpha[i]:alpha[i+1]],
+        betahat66<-as.vector(coef(glmnet(X[alpha[i]:alpha[i+1],],Y[alpha[i]:alpha[i+1]],
                                          intercept=FALSE,family="binomial"),s=c1*(sqrt(2*log(2*p)/(alpha[i+1]-alpha[i]+1))+log(2*p)/(alpha[i+1]-alpha[i]+1))))   # the estimation of regression coefficients
         
         hs[alpha[i]]<-sum(log(I+exp(X[alpha[i]:alpha[i+1],]%*%betahat66[-1]))-Y[alpha[i]:alpha[i+1]]*(X[alpha[i]:alpha[i+1],]%*%betahat66[-1]))/n

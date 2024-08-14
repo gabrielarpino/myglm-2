@@ -12,13 +12,13 @@ bsachgpt(X, Y, kmax, c1, m1, delta)
 
 \item{Y}{an n dimensional data vector, n=observation}
 
+\item{kmax}{the maximum change point number.}
+
 \item{c1}{a constant specified by users.}
 
 \item{m1}{the sample size of the minimal interval.}
 
 \item{delta}{the minimal interval length specified by users.}
-
-\item{Kmax}{the maximum change point number.}
 }
 \value{
 A list including: the estimated change point number, the estimated
