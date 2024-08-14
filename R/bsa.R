@@ -19,7 +19,7 @@ library(MASS)
 bsachgpt<-function(X,Y,kmax,c1,m1,delta){
   x = matrix(rnorm(100 * 20), 100, 20)
   g = sample(c(0,1), 100, replace = TRUE)
-  fit = glmnet(x, g2, family = "binomial")
+  fit = glmnet(x, g, family = "binomial")
   #1.Initialize T to the tree with a single root node labeled by (0; 1].
   n<-length(Y)
   v=length(Y)
