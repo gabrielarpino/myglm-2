@@ -14,7 +14,6 @@ library(MASS)
 #'   change point locations.
 #' @importFrom stats coef
 #' @importFrom glmnet glmnet
-
 ######## change point estimation by bsa ########
 bsachgpt<-function(X,Y,kmax,c1,m1,delta){
   print("Entered bsachgpt")
@@ -92,5 +91,70 @@ bsachgpt<-function(X,Y,kmax,c1,m1,delta){
   cplocation.estimator<-rep(0,length(alpha))
   cplocation.estimator<-alpha #change point location
   list<-list(cpnumber.estimator=cpnumber.estimator,cplocation.estimator=cplocation.estimator)
+  return(list)
+}
+
+#' This function wraps around bsachgpt.
+#' @export
+#' @importFrom MASS mvrnorm
+#' @importFrom stats rbinom rnorm runif
+bsawrapper<-function(){
+  #=================== initial settings====================
+  n=200       # sample size 
+  p=10    # data dimension
+  sigma<-matrix(0,nrow = p,ncol = p)   #covariance matrix 
+  for (i in 1:p){
+    for (j in 1:p){
+      sigma[i,j]<-0.6^(abs(i-j))
+    }
+  }
+  tau0<-0.5  # true change point location
+  tr<- 10^{-6} 
+  kmax=6   # upper bound of the number of change point
+  #==== tuning parameter(specifed by users)==========
+  delta=0.1  # the shortest length of intervals
+  c1<-0.18 # lambda related parameter
+  #===============signal jump size==================
+  m1=ceiling(n*delta)   # size of the shortest interval
+  signaljump<-20*sqrt(log(p)/(delta*n))  # signal jump
+  signalsupport<-ceiling(log(p))
+  signalsupport.range<-0.3*p
+
+  #===============generating change point model settings============
+  beta1<-rep(0,p)   #  regression coefficient 1
+  beta2<-rep(0,p)   #  regression coefficient 2
+  for (i in sample(1:(signalsupport.range),signalsupport)) {
+    beta1[i]<-runif(1,min=0,max=2)
+  }
+  for (i in sample(1:(signalsupport.range),signalsupport)) {
+    beta2[i]<-runif(1,min=0,max=2)+runif(1,min=0.5,max=signaljump)
+  }
+
+  X<-mvrnorm(n,rep(0,p),sigma)  # design matrix
+  error<-rnorm(n)      # error term
+  Y1<-vector(mode = "numeric",length=0L)  # response variable before change point
+  Y2<-vector(mode = "numeric",length=0L)  # response variable after change point
+  O1<-vector(mode = "numeric",length=0L)
+  O2<-vector(mode = "numeric",length=0L)
+  R1=X[1:(tau0*n),]%*%beta1+error[1:(tau0*n)]
+  R2=X[(tau0*n+1):n,]%*%beta2+error[(tau0*n+1):n]
+  for (i in 1:(n/2)){
+    O1[i]<-exp(R1[i])/(1+exp(R1[i]))
+    O2[i]<-exp(R2[i])/(1+exp(R2[i]))
+    Y1[i]=rbinom(1,1,O1[i])
+    Y2[i]=rbinom(1,1,O2[i])
+  }
+
+  Y=c(Y1,Y2)   # response variable 
+
+
+  #=======estimate change points by bsa=======
+  reg<-bsachgpt(X,Y,kmax,c1,m1,delta)
+  cpnumber<-reg$cpnumber.estimator
+  cplocation<-reg$cplocation.estimator
+  #=========output==========
+  print(cpnumber)
+  print(cplocation)
+  list<-list(cpnumber=cpnumber,cplocation=cplocation)
   return(list)
 }
