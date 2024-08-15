@@ -17,11 +17,6 @@ library(MASS)
 ######## change point estimation by bsa ########
 bsachgpt<-function(X,Y,kmax,c1,m1,delta){
   print("Entered bsachgpt")
-  x = matrix(rnorm(100 * 20), 100, 20)
-  g = sample(c(0,1), 100, replace = TRUE)
-  fit = glmnet(x, g, family = "binomial")
-  print("Passed first glmnet")
-  
   #1.Initialize T to the tree with a single root node labeled by (0; 1].
   n<-length(Y)
   v=length(Y)
