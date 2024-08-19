@@ -6,7 +6,9 @@
 <!-- badges: start -->
 <!-- badges: end -->
 
-The goal of myglm is to call bsa as an R package from Python.
+The goal of myglm is to call bsa as an R package from Python. Use the
+example script in the R-code-glm-2024 folder to test the bsa code
+locaclly.
 
 ## Installation
 
