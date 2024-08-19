@@ -15,8 +15,8 @@ library(MASS)
 #' @importFrom stats coef
 #' @importFrom glmnet glmnet
 ######## change point estimation by bsa ########
-bsa.chgpt<-function(X,Y,kmax,c1,m1,delta){
-  print("Entered bsa.chgpt")
+bsa_chgpt<-function(X,Y,kmax,c1,m1,delta){
+  print("Entered bsa_chgpt")
   #1.Initialize T to the tree with a single root node labeled by (0; 1].
   n<-length(Y)
   v=length(Y)
@@ -82,7 +82,7 @@ bsa.chgpt<-function(X,Y,kmax,c1,m1,delta){
     }
   }
   ##======= output change point estimator===============
-  print("Reached end of bsa.chgpt")
+  print("Reached end of bsa_chgpt")
   cpnumber.estimator<-length(alpha)-2  #change point number
   cplocation.estimator<-rep(0,length(alpha))
   cplocation.estimator<-alpha #change point location
@@ -104,8 +104,8 @@ bsa.chgpt<-function(X,Y,kmax,c1,m1,delta){
 #' @importFrom stats coef
 #' @importFrom glmnet glmnet
 ######## change point estimation by bsa ########
-bsa.exactchgpt<-function(X,Y,kmax,c1,m1,delta){
-  print("Entered bsa.exactchgpt")
+bsa_exactchgpt<-function(X,Y,kmax,c1,m1,delta){
+  print("Entered bsa_exactchgpt")
   #1.Initialize T to the tree with a single root node labeled by (0; 1].
   n<-length(Y)
   v=length(Y)
@@ -174,7 +174,7 @@ bsa.exactchgpt<-function(X,Y,kmax,c1,m1,delta){
     }
   }
   ##======= output change point estimator===============
-  print("Reached end of bsa.exactchgpt")
+  print("Reached end of bsa_exactchgpt")
   cpnumber.estimator<-length(alpha)-2  #change point number
   cplocation.estimator<-rep(0,length(alpha))
   cplocation.estimator<-alpha #change point location
@@ -245,7 +245,7 @@ bsawrapper<-function(n, p, Sigma, kmax, delta){
 
 
   #=======estimate change points by bsa=======
-  reg<-bsa.chgpt(X,Y,kmax,c1,m1,delta)
+  reg<-bsa_chgpt(X,Y,kmax,c1,m1,delta)
   cpnumber<-reg$cpnumber.estimator
   cplocation<-reg$cplocation.estimator
   #=========output==========
@@ -268,7 +268,7 @@ bsawrapper<-function(n, p, Sigma, kmax, delta){
 #' @param delta the minimal interval length specified by users.
 #' @return  A list including: the estimated change point number, the estimated
 #'   change point locations.
-bsa.wrapper<-function(X, Y, kmax, delta){
+bsa_wrapper<-function(X, Y, kmax, delta){
   #=================== initial settings====================
   # n=200       # sample size 
   # p=10    # data dimension
@@ -278,7 +278,7 @@ bsa.wrapper<-function(X, Y, kmax, delta){
   #     Sigma[i,j]<-0.6^(abs(i-j))
   #   }
   # }
-  print("Entered bsa.wrapper")
+  print("Entered bsa_wrapper")
   n<-length(Y)
   # tau0<-0.5  # true change point location
   # kmax=6   # upper bound of the number of change point
@@ -290,11 +290,11 @@ bsa.wrapper<-function(X, Y, kmax, delta){
   m1=ceiling(n*delta)   # size of the shortest interval
 
   #=======estimate change points by bsa=======
-  reg<-bsa.chgpt(X,Y,kmax,c1,m1,delta)
+  reg<-bsa_chgpt(X,Y,kmax,c1,m1,delta)
   cpnumber<-reg$cpnumber.estimator
   cplocation<-reg$cplocation.estimator
   #=========output==========
-  print("Reached end of bsa.wrapper")
+  print("Reached end of bsa_wrapper")
   print(cpnumber)
   print(cplocation)
   list<-list(cpnumber=cpnumber,cplocation=cplocation)
@@ -313,7 +313,7 @@ bsa.wrapper<-function(X, Y, kmax, delta){
 #' @param delta the minimal interval length specified by users.
 #' @return  A list including: the estimated change point number, the estimated
 #'   change point locations.
-bsa.exact.wrapper<-function(X, Y, kmax, delta){
+bsa_exact_wrapper<-function(X, Y, kmax, delta){
   #=================== initial settings====================
   # n=200       # sample size 
   # p=10    # data dimension
@@ -323,7 +323,7 @@ bsa.exact.wrapper<-function(X, Y, kmax, delta){
   #     Sigma[i,j]<-0.6^(abs(i-j))
   #   }
   # }
-  print("Entered bsa.exact.wrapper")
+  print("Entered bsa_exact_wrapper")
   n<-length(Y)
   # tau0<-0.5  # true change point location
   # kmax=6   # upper bound of the number of change point
@@ -335,11 +335,11 @@ bsa.exact.wrapper<-function(X, Y, kmax, delta){
   m1=ceiling(n*delta)   # size of the shortest interval
   
   #=======estimate change points by bsa=======
-  reg<-bsa.exactchgpt(X,Y,kmax,c1,m1,delta)
+  reg<-bsa_exactchgpt(X,Y,kmax,c1,m1,delta)
   cpnumber<-reg$cpnumber.estimator
   cplocation<-reg$cplocation.estimator
   #=========output==========
-  print("Reached end of bsa.exact.wrapper")
+  print("Reached end of bsa_exact_wrapper")
   print(cpnumber)
   print(cplocation)
   list<-list(cpnumber=cpnumber,cplocation=cplocation)
