@@ -13,20 +13,20 @@ knitr::opts_chunk$set(
 )
 ```
 
-# myglm-2
+# myglm2
 
 <!-- badges: start -->
 <!-- badges: end -->
 
-The goal of myglm-2 is to call bsa as an R package from Python. Use the example script in the R-code-glm-2024 folder to test the bsa code locaclly.
+The goal of myglm2 is to call bsa as an R package from Python. Use the example script in the R-code-glm-2024 folder to test the bsa code locaclly.
 
 ## Installation
 
-You can install the development version of myglm-2 from [GitHub](https://github.com/) with:
+You can install the development version of myglm2 from [GitHub](https://github.com/) with:
 
 ``` r
 # install.packages("devtools")
-devtools::install_github("ShirleyLiuXQ/myglm-2")
+devtools::install_github("ShirleyLiuXQ/myglm2")
 ```
 
 ## Example
@@ -34,7 +34,7 @@ devtools::install_github("ShirleyLiuXQ/myglm-2")
 This is a basic example which shows you how to solve a common problem:
 
 ```{r example}
-library(myglm-2)
+library(myglm2)
 ## basic example code
 ```
 
