@@ -1,35 +1,58 @@
 library(glmnet)
 library(MASS)
 
-# Alternative safe_glmnet_coef that matches the original exactly
+# Debug version of safe_glmnet_coef to track the issue
 safe_glmnet_coef <- function(X, y, target_lambda) {
   n_rows <- nrow(X)
   n_cols <- ncol(X)
   
+  print(paste("safe_glmnet_coef called with X dims:", n_rows, "x", n_cols))
+  print(paste("y length:", length(y)))
+  print(paste("y table:", paste(table(y), collapse=", ")))
+  
   # Check if data is problematic
   if (n_rows < 10 || min(table(y)) < 3) {
-    # Return exactly what the original would: intercept + p coefficients
-    return(c(0, rep(0, n_cols)))  # Explicit: [intercept, coef1, coef2, ...]
+    print("Using fallback: returning zeros")
+    result <- c(0, rep(0, n_cols))  # intercept + p coefficients
+    print(paste("Fallback result length:", length(result)))
+    return(result)
   }
   
   # Try with forced lambda values
   tryCatch({
-    # Match the original call exactly
+    print("Attempting glmnet call...")
     fit <- glmnet(X, y, intercept=FALSE, family="binomial", 
                   lambda=c(1.0, 0.1, 0.01))
     
-    # Use middle lambda
+    print("glmnet succeeded, extracting coefficients...")
     coef_result <- as.vector(coef(fit, s=0.1))
     
-    # Debug: print dimensions
-    print(paste("X dims:", n_rows, "x", n_cols, "Coef length:", length(coef_result)))
+    print(paste("Coefficient result length:", length(coef_result)))
+    print(paste("Expected length:", n_cols + 1))
     
-    return(coef_result)
+    # If glmnet with intercept=FALSE still returns wrong length, force correct structure
+    if (length(coef_result) == n_cols) {
+      # No intercept was included, add it
+      result <- c(0, coef_result)
+      print("Added intercept to match expected structure")
+    } else if (length(coef_result) == n_cols + 1) {
+      # Correct length
+      result <- coef_result
+      print("Coefficient length is correct")
+    } else {
+      # Wrong length entirely, use fallback
+      print("Unexpected coefficient length, using fallback")
+      result <- c(0, rep(0, n_cols))
+    }
+    
+    print(paste("Final result length:", length(result)))
+    return(result)
     
   }, error = function(e) {
     print(paste("glmnet failed:", e$message))
-    # Return same structure as successful glmnet call
-    return(c(0, rep(0, n_cols)))
+    result <- c(0, rep(0, n_cols))
+    print(paste("Error fallback result length:", length(result)))
+    return(result)
   })
 }
 
