@@ -78,7 +78,7 @@ bsa_chgpt<-function(X,Y,kmax,c1,m1,delta){
                                          intercept=FALSE,family="binomial",
                                          nlambda=glmnet_nlambda, # ADDED
                                          pmax=glmnet_pmax),     # ADDED
-                                  s=c1*(sqrt(2*log(2*p)/(alpha[i+1]-alpha[i]+1))+log(2*p)/(alpha[i+1]-alpha[i]+1))))   # the estimation of regression coefficients
+                                  s=c1*(sqrt(2*log(2*p)/(alpha[i+1]-alpha[i]+1))+log(2*p)/(alpha[i+1]-alpha[i]+1)))) # the estimation of regression coefficients
         # --- END MODIFICATION ---
         # print("Passed 3/3 glmnet in bsa")
         hs[alpha[i]]<-sum(log(I+exp(X[alpha[i]:alpha[i+1],]%*%betahat66[-1]))-Y[alpha[i]:alpha[i+1]]*(X[alpha[i]:alpha[i+1],]%*%betahat66[-1]))/n
@@ -195,7 +195,7 @@ bsa_exactchgpt<-function(X,Y,kmax,c1,m1,delta){
                                          intercept=FALSE,family="binomial",
                                          nlambda=glmnet_nlambda, # ADDED
                                          pmax=glmnet_pmax),     # ADDED
-                                  s=c1*(sqrt(2*log(2*p)/(alpha[i+1]-alpha[i]+1))+log(2*p)/(alpha[i+1]-alpha[i]+1))))   # the estimation of regression coefficients
+                                  s=c1*(sqrt(2*log(2*p)/(alpha[i+1]-alpha[i]+1))+log(2*p)/(alpha[i+1]-alpha[i]+1)))) # the estimation of regression coefficients
         # --- END MODIFICATION ---
         # print("Passed 3/3 glmnet in bsa")
         hs[alpha[i]]<-sum(log(I+exp(X[alpha[i]:alpha[i+1],]%*%betahat66[-1]))-Y[alpha[i]:alpha[i+1]]*(X[alpha[i]:alpha[i+1],]%*%betahat66[-1]))/n
