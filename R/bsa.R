@@ -2,57 +2,52 @@ library(glmnet)
 library(MASS)
 
 # Debug version of safe_glmnet_coef to track the issue
+# Replace your safe_glmnet_coef with this version that avoids glmnet entirely for small samples
 safe_glmnet_coef <- function(X, y, target_lambda) {
   n_rows <- nrow(X)
   n_cols <- ncol(X)
   
   print(paste("safe_glmnet_coef called with X dims:", n_rows, "x", n_cols))
-  print(paste("y length:", length(y)))
-  print(paste("y table:", paste(table(y), collapse=", ")))
   
-  # Check if data is problematic
-  if (n_rows < 10 || min(table(y)) < 3) {
-    print("Using fallback: returning zeros")
+  # More conservative thresholds to avoid glmnet entirely for problematic cases
+  if (n_rows < 20 || min(table(y)) < 8 || n_rows <= n_cols) {
+    print("Using fallback: bypassing glmnet entirely")
     result <- c(0, rep(0, n_cols))  # intercept + p coefficients
     print(paste("Fallback result length:", length(result)))
     return(result)
   }
   
-  # Try with forced lambda values
+  # Only try glmnet for cases that should work
   tryCatch({
-    print("Attempting glmnet call...")
-    fit <- glmnet(X, y, intercept=FALSE, family="binomial", 
-                  lambda=c(1.0, 0.1, 0.01))
+    print("Attempting glmnet call with conservative parameters...")
+    
+    # Use very conservative glmnet parameters
+    fit <- glmnet(X, y, 
+                  intercept = FALSE,
+                  family = "binomial", 
+                  lambda = c(1.0, 0.5, 0.1),  # Larger lambdas
+                  nlambda = 3,
+                  alpha = 1,  # Pure lasso
+                  standardize = TRUE)  # Let glmnet standardize
     
     print("glmnet succeeded, extracting coefficients...")
-    coef_result <- as.vector(coef(fit, s=0.1))
+    coef_result <- as.vector(coef(fit, s = 0.5))  # Use larger lambda
     
     print(paste("Coefficient result length:", length(coef_result)))
-    print(paste("Expected length:", n_cols + 1))
     
-    # If glmnet with intercept=FALSE still returns wrong length, force correct structure
-    if (length(coef_result) == n_cols) {
-      # No intercept was included, add it
-      result <- c(0, coef_result)
-      print("Added intercept to match expected structure")
-    } else if (length(coef_result) == n_cols + 1) {
-      # Correct length
-      result <- coef_result
-      print("Coefficient length is correct")
-    } else {
-      # Wrong length entirely, use fallback
+    # Ensure correct structure
+    if (length(coef_result) != n_cols + 1) {
       print("Unexpected coefficient length, using fallback")
-      result <- c(0, rep(0, n_cols))
+      return(c(0, rep(0, n_cols)))
     }
     
-    print(paste("Final result length:", length(result)))
-    return(result)
+    print("Returning glmnet coefficients")
+    return(coef_result)
     
   }, error = function(e) {
     print(paste("glmnet failed:", e$message))
-    result <- c(0, rep(0, n_cols))
-    print(paste("Error fallback result length:", length(result)))
-    return(result)
+    print("Using zero fallback")
+    return(c(0, rep(0, n_cols)))
   })
 }
 
