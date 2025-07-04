@@ -179,6 +179,7 @@ bsa_exactchgpt<-function(X,Y,kmax,c1,m1,delta){
   glmnet_pmax <- 10     # Very conservative
   print(paste("updated 4: glmnet_pmax is set to:", glmnet_pmax))
   print(paste("updated 4: glmnet_nlambda is set to:", glmnet_nlambda))
+  print(paste("update 5: safe_glmnet"))
   # Print what glmnet_pmax is
   # --- END ADDITION ---
 
