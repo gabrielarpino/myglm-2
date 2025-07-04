@@ -17,7 +17,7 @@ You can install the development version of myglm from
 
 ``` r
 # install.packages("devtools")
-devtools::install_github("ShirleyLiuXQ/myglm")
+devtools::install_github("gabrielarpino/myglm-2")
 ```
 
 ## Example
