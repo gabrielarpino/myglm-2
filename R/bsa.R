@@ -150,6 +150,8 @@ bsa_exactchgpt<-function(X,Y,kmax,c1,m1,delta){
   # Explicitly setting it to p is generally safe and robust.
   glmnet_nlambda <- 100 # Standard default, can be reduced if needed (e.g., 50 or 20)
   glmnet_pmax <- p     # Explicitly set to the number of features 'p'
+  # Print what glmnet_pmax is
+  print(paste("glmnet_pmax is set to:", glmnet_pmax))
   # --- END ADDITION ---
 
   # The for loop below is the only difference between this function
