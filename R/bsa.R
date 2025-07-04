@@ -1,37 +1,35 @@
 library(glmnet)
 library(MASS)
 
-# Replace your safe_glmnet_coef function with this corrected version:
+# Alternative safe_glmnet_coef that matches the original exactly
 safe_glmnet_coef <- function(X, y, target_lambda) {
   n_rows <- nrow(X)
   n_cols <- ncol(X)
   
   # Check if data is problematic
   if (n_rows < 10 || min(table(y)) < 3) {
-    # Return zeros with intercept: (intercept, p coefficients)
-    return(rep(0, n_cols + 1))
+    # Return exactly what the original would: intercept + p coefficients
+    return(c(0, rep(0, n_cols)))  # Explicit: [intercept, coef1, coef2, ...]
   }
   
-  # Try with forced lambda values to avoid the bug
+  # Try with forced lambda values
   tryCatch({
-    fit <- glmnet(X, y, family="binomial", 
-                  intercept=FALSE,  # Match the original calls
-                  lambda=c(1.0, 0.1, 0.01),
-                  nlambda=3)
+    # Match the original call exactly
+    fit <- glmnet(X, y, intercept=FALSE, family="binomial", 
+                  lambda=c(1.0, 0.1, 0.01))
     
+    # Use middle lambda
     coef_result <- as.vector(coef(fit, s=0.1))
     
-    # Ensure correct length: should be n_cols + 1 (intercept + coefficients)
-    if (length(coef_result) != n_cols + 1) {
-      warning(paste("Coefficient length mismatch. Expected:", n_cols + 1, "Got:", length(coef_result)))
-      return(rep(0, n_cols + 1))
-    }
+    # Debug: print dimensions
+    print(paste("X dims:", n_rows, "x", n_cols, "Coef length:", length(coef_result)))
     
     return(coef_result)
     
   }, error = function(e) {
-    print(paste("glmnet failed in safe_glmnet_coef:", e$message))
-    return(rep(0, n_cols + 1))
+    print(paste("glmnet failed:", e$message))
+    # Return same structure as successful glmnet call
+    return(c(0, rep(0, n_cols)))
   })
 }
 
