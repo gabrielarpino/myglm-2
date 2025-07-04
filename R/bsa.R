@@ -2,7 +2,7 @@ library(glmnet)
 library(MASS)
 
 #' This function provides change point estimation by Binary Segmentation Algorithm
-#'  for the high dimensional generalized linear regression model.
+#' for the high dimensional generalized linear regression model.
 #' @export
 #' @param X an n*p data matrix, n=observation, p=dimension
 #' @param Y an n dimensional data vector, n=observation
@@ -10,8 +10,8 @@ library(MASS)
 #' @param c1 a constant specified by users.
 #' @param m1 the sample size of the minimal interval.
 #' @param delta the minimal interval length specified by users.
-#' @return  A list including: the estimated change point number, the estimated
-#'   change point locations.
+#' @return A list including: the estimated change point number, the estimated
+#'  change point locations.
 #' @importFrom stats coef
 #' @importFrom glmnet glmnet
 ######## change point estimation by bsa ########
@@ -97,7 +97,7 @@ bsa_chgpt<-function(X,Y,kmax,c1,m1,delta){
       shat[i]<-which.min(hs)
 
       if (shat[i]==alpha[i]){
-        alpha=alpha  }
+        alpha=alpha }
       else {alpha=sort(c(alpha,shat[i]))
       alpha<-alpha[!duplicated(alpha)]}
     }
@@ -109,7 +109,7 @@ bsa_chgpt<-function(X,Y,kmax,c1,m1,delta){
   }
   ##======= output change point estimator===============
   print("Reached end of bsa_chgpt")
-  cpnumber.estimator<-length(alpha)-2  #change point number
+  cpnumber.estimator<-length(alpha)-2 #change point number
   cplocation.estimator<-rep(0,length(alpha))
   cplocation.estimator<-alpha #change point location
   list<-list(cpnumber.estimator=cpnumber.estimator,cplocation.estimator=cplocation.estimator)
@@ -117,7 +117,7 @@ bsa_chgpt<-function(X,Y,kmax,c1,m1,delta){
 }
 
 #' This function provides change point estimation by Binary Segmentation Algorithm
-#'  for the high dimensional generalized linear regression model.
+#' for the high dimensional generalized linear regression model.
 #' @export
 #' @param X an n*p data matrix, n=observation, p=dimension
 #' @param Y an n dimensional data vector, n=observation
@@ -125,8 +125,8 @@ bsa_chgpt<-function(X,Y,kmax,c1,m1,delta){
 #' @param c1 a constant specified by users.
 #' @param m1 the sample size of the minimal interval.
 #' @param delta the minimal interval length specified by users.
-#' @return  A list including: the estimated change point number, the estimated
-#'   change point locations.
+#' @return A list including: the estimated change point number, the estimated
+#'  change point locations.
 #' @importFrom stats coef
 #' @importFrom glmnet glmnet
 ######## change point estimation by bsa ########
@@ -214,7 +214,7 @@ bsa_exactchgpt<-function(X,Y,kmax,c1,m1,delta){
       shat[i]<-which.min(hs)
 
       if (shat[i]==alpha[i]){
-        alpha=alpha  }
+        alpha=alpha }
       else {alpha=sort(c(alpha,shat[i]))
       alpha<-alpha[!duplicated(alpha)]}
     }
@@ -226,7 +226,7 @@ bsa_exactchgpt<-function(X,Y,kmax,c1,m1,delta){
   }
   ##======= output change point estimator===============
   print("Reached end of bsa_exactchgpt")
-  cpnumber.estimator<-length(alpha)-2  #change point number
+  cpnumber.estimator<-length(alpha)-2 #change point number
   cplocation.estimator<-rep(0,length(alpha))
   cplocation.estimator<-alpha #change point location
   list<-list(cpnumber.estimator=cpnumber.estimator,cplocation.estimator=cplocation.estimator)
@@ -242,34 +242,34 @@ bsa_exactchgpt<-function(X,Y,kmax,c1,m1,delta){
 #' @param Sigma pxp covariance of rows of X
 #' @param kmax the maximum change point number.
 #' @param delta the minimal interval length specified by users.
-#' @return  A list including: the estimated change point number, the estimated
-#'   change point locations.
+#' @return A list including: the estimated change point number, the estimated
+#'  change point locations.
 bsawrapper<-function(n, p, Sigma, kmax, delta){
   #=================== initial settings====================
-  # n=200       # sample size
-  # p=10    # data dimension
-  # Sigma<-matrix(0,nrow = p,ncol = p)   #covariance matrix
+  # n=200    # sample size
+  # p=10  # data dimension
+  # Sigma<-matrix(0,nrow = p,ncol = p)  #covariance matrix
   # for (i in 1:p){
-  #   for (j in 1:p){
-  #     Sigma[i,j]<-0.6^(abs(i-j))
-  #   }
+  #  for (j in 1:p){
+  #   Sigma[i,j]<-0.6^(abs(i-j))
+  #  }
   # }
   print("Entered bsawrapper")
-  tau0<-0.5  # true change point location
-  # kmax=6   # upper bound of the number of change point
+  tau0<-0.5 # true change point location
+  # kmax=6  # upper bound of the number of change point
   #==== tuning parameter(specifed by users)==========
-  # delta=0.1  # fractional length of the shortest interval
+  # delta=0.1 # fractional length of the shortest interval
   # (i.e. distance between nearest adjacent changepoints as a fraction of n)
   c1<-0.18 # lambda related parameter
   #===============signal jump size==================
-  m1=ceiling(n*delta)   # size of the shortest interval
-  signaljump<-20*sqrt(log(p)/(delta*n))  # signal jump
+  m1=ceiling(n*delta)  # size of the shortest interval
+  signaljump<-20*sqrt(log(p)/(delta*n)) # signal jump
   signalsupport<-ceiling(log(p))
   signalsupport.range<-0.3*p
 
   #===============generating change point model settings============
-  beta1<-rep(0,p)   #  regression coefficient 1
-  beta2<-rep(0,p)   #  regression coefficient 2
+  beta1<-rep(0,p)  # regression coefficient 1
+  beta2<-rep(0,p)  # regression coefficient 2
   for (i in sample(1:(signalsupport.range),signalsupport)) {
     beta1[i]<-runif(1,min=0,max=2)
   }
@@ -277,10 +277,10 @@ bsawrapper<-function(n, p, Sigma, kmax, delta){
     beta2[i]<-runif(1,min=0,max=2)+runif(1,min=0.5,max=signaljump)
   }
 
-  X<-mvrnorm(n,rep(0,p),Sigma)  # design matrix
-  error<-rnorm(n)      # error term
-  Y1<-vector(mode = "numeric",length=0L)  # response variable before change point
-  Y2<-vector(mode = "numeric",length=0L)  # response variable after change point
+  X<-mvrnorm(n,rep(0,p),Sigma) # design matrix
+  error<-rnorm(n)   # error term
+  Y1<-vector(mode = "numeric",length=0L) # response variable before change point
+  Y2<-vector(mode = "numeric",length=0L) # response variable after change point
   O1<-vector(mode = "numeric",length=0L)
   O2<-vector(mode = "numeric",length=0L)
   R1=X[1:(tau0*n),]%*%beta1+error[1:(tau0*n)]
@@ -292,7 +292,7 @@ bsawrapper<-function(n, p, Sigma, kmax, delta){
     Y2[i]=rbinom(1,1,O2[i])
   }
 
-  Y=c(Y1,Y2)   # response variable
+  Y=c(Y1,Y2)  # response variable
 
 
   #=======estimate change points by bsa=======
@@ -317,28 +317,28 @@ bsawrapper<-function(n, p, Sigma, kmax, delta){
 #' @param Y an n dimensional data vector, n=observation
 #' @param kmax the maximum change point number.
 #' @param delta the minimal interval length specified by users.
-#' @return  A list including: the estimated change point number, the estimated
-#'   change point locations.
+#' @return A list including: the estimated change point number, the estimated
+#'  change point locations.
 bsa_wrapper<-function(X, Y, kmax, delta){
   #=================== initial settings====================
-  # n=200       # sample size
-  # p=10    # data dimension
-  # Sigma<-matrix(0,nrow = p,ncol = p)   #covariance matrix
+  # n=200    # sample size
+  # p=10  # data dimension
+  # Sigma<-matrix(0,nrow = p,ncol = p)  #covariance matrix
   # for (i in 1:p){
-  #   for (j in 1:p){
-  #     Sigma[i,j]<-0.6^(abs(i-j))
-  #   }
+  #  for (j in 1:p){
+  #   Sigma[i,j]<-0.6^(abs(i-j))
+  #  }
   # }
   print("Entered bsa_wrapper")
   n<-length(Y)
-  # tau0<-0.5  # true change point location
-  # kmax=6   # upper bound of the number of change point
+  # tau0<-0.5 # true change point location
+  # kmax=6  # upper bound of the number of change point
   #==== tuning parameter(specifed by users)==========
-  # delta=0.1  # fractional length of the shortest interval
+  # delta=0.1 # fractional length of the shortest interval
   # (i.e. distance between nearest adjacent changepoints as a fraction of n)
   c1<-0.18 # lambda related parameter
   #===============signal jump size==================
-  m1=ceiling(n*delta)   # size of the shortest interval
+  m1=ceiling(n*delta)  # size of the shortest interval
 
   #=======estimate change points by bsa=======
   reg<-bsa_chgpt(X,Y,kmax,c1,m1,delta)
@@ -362,28 +362,28 @@ bsa_wrapper<-function(X, Y, kmax, delta){
 #' @param Y an n dimensional data vector, n=observation
 #' @param kmax the maximum change point number.
 #' @param delta the minimal interval length specified by users.
-#' @return  A list including: the estimated change point number, the estimated
-#'   change point locations.
+#' @return A list including: the estimated change point number, the estimated
+#'  change point locations.
 bsa_exact_wrapper<-function(X, Y, kmax, delta){
   #=================== initial settings====================
-  # n=200       # sample size
-  # p=10    # data dimension
-  # Sigma<-matrix(0,nrow = p,ncol = p)   #covariance matrix
+  # n=200    # sample size
+  # p=10  # data dimension
+  # Sigma<-matrix(0,nrow = p,ncol = p)  #covariance matrix
   # for (i in 1:p){
-  #   for (j in 1:p){
-  #     Sigma[i,j]<-0.6^(abs(i-j))
-  #   }
+  #  for (j in 1:p){
+  #   Sigma[i,j]<-0.6^(abs(i-j))
+  #  }
   # }
   print("Entered bsa_exact_wrapper")
   n<-length(Y)
-  # tau0<-0.5  # true change point location
-  # kmax=6   # upper bound of the number of change point
+  # tau0<-0.5 # true change point location
+  # kmax=6  # upper bound of the number of change point
   #==== tuning parameter(specifed by users)==========
-  # delta=0.1  # fractional length of the shortest interval
+  # delta=0.1 # fractional length of the shortest interval
   # (i.e. distance between nearest adjacent changepoints as a fraction of n)
   c1<-0.18 # lambda related parameter
   #===============signal jump size==================
-  m1=ceiling(n*delta)   # size of the shortest interval
+  m1=ceiling(n*delta)  # size of the shortest interval
 
   #=======estimate change points by bsa=======
   reg<-bsa_exactchgpt(X,Y,kmax,c1,m1,delta)
