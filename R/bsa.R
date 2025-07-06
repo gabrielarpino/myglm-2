@@ -1,56 +1,6 @@
 library(glmnet)
 library(MASS)
 
-# Debug version of safe_glmnet_coef to track the issue
-# Replace your safe_glmnet_coef with this version that avoids glmnet entirely for small samples
-safe_glmnet_coef <- function(X, y, target_lambda) {
-  n_rows <- nrow(X)
-  n_cols <- ncol(X)
-  
-  print(paste("safe_glmnet_coef called with X dims:", n_rows, "x", n_cols))
-  
-  # More conservative thresholds to avoid glmnet entirely for problematic cases
-  if (n_rows < 20 || min(table(y)) < 8 || n_rows <= n_cols) {
-    print("Using fallback: bypassing glmnet entirely")
-    result <- c(0, rep(0, n_cols))  # intercept + p coefficients
-    print(paste("Fallback result length:", length(result)))
-    return(result)
-  }
-  
-  # Only try glmnet for cases that should work
-  tryCatch({
-    print("Attempting glmnet call with conservative parameters...")
-    
-    # Use very conservative glmnet parameters
-    fit <- glmnet(X, y, 
-                  intercept = FALSE,
-                  family = "binomial", 
-                  lambda = c(1.0, 0.5, 0.1),  # Larger lambdas
-                  nlambda = 3,
-                  alpha = 1,  # Pure lasso
-                  standardize = TRUE)  # Let glmnet standardize
-    
-    print("glmnet succeeded, extracting coefficients...")
-    coef_result <- as.vector(coef(fit, s = 0.5))  # Use larger lambda
-    
-    print(paste("Coefficient result length:", length(coef_result)))
-    
-    # Ensure correct structure
-    if (length(coef_result) != n_cols + 1) {
-      print("Unexpected coefficient length, using fallback")
-      return(c(0, rep(0, n_cols)))
-    }
-    
-    print("Returning glmnet coefficients")
-    return(coef_result)
-    
-  }, error = function(e) {
-    print(paste("glmnet failed:", e$message))
-    print("Using zero fallback")
-    return(c(0, rep(0, n_cols)))
-  })
-}
-
 #' This function provides change point estimation by Binary Segmentation Algorithm
 #' for the high dimensional generalized linear regression model.
 #' @export
@@ -61,116 +11,90 @@ safe_glmnet_coef <- function(X, y, target_lambda) {
 #' @param m1 the sample size of the minimal interval.
 #' @param delta the minimal interval length specified by users.
 #' @return A list including: the estimated change point number, the estimated
-#'  change point locations.
+#'   change point locations.
 #' @importFrom stats coef
 #' @importFrom glmnet glmnet
 ######## change point estimation by bsa ########
-bsa_chgpt<-function(X,Y,kmax,c1,m1,delta){
+bsa_chgpt <- function(X, Y, kmax, c1, m1, delta) {
   print("Entered bsa_chgpt")
-  #1.Initialize T to the tree with a single root node labeled by (0; 1].
-  n<-length(Y)
-  v=length(Y)
-  u=1
-  p<-length(X[1,])
-  alpha<-c(u,v)
-  hs<-vector(mode="numeric",length=0L)
-  shat<-vector(mode="numeric",length=0L)
-  alphalength=vector(mode="numeric",length=0L)
-
-  # --- START ADDITION: Define glmnet control parameters ---
-  # These parameters help prevent internal integer overflows in glmnet.
-  # nlambda: number of lambda values to use in the regularization path.
-  # Default is 100. Reducing it might resolve issues if 100 is too high for certain p/n.
-  # pmax: maximum number of variables ever to be nonzero. Default is p.
-  # Explicitly setting it to p is generally safe and robust.
-  glmnet_nlambda <- 100 # Standard default, can be reduced if needed (e.g., 50 or 20)
-  glmnet_pmax <- p     # Explicitly set to the number of features 'p'
-  # --- END ADDITION ---
-
-  for (z in 1:kmax) {
-    alphalength[z]=length(alpha)
-    for (i in 1:(length(alpha)-1)){
-
-      for (s in (alpha[i]+m1):(alpha[i+1]-m1)){
-        if ((alpha[i]+m1)>(alpha[i+1]-m1)){
-          break
-        }
-
-        hs[1:(alpha[i]+m1)]<-rep(10000,(alpha[i]+m1))
-        betahat33<-matrix(0,nrow =(alpha[i+1]-m1),ncol = p)
-        betahat55<-matrix(0,nrow =(alpha[i+1]-m1),ncol = p)
-
-        # print("Reached 1/3 glmnet in bsa")
-        # --- START MODIFICATION: Added nlambda and pmax to glmnet calls ---
-        # betahat22<-as.vector(coef(glmnet(X[alpha[i]:s,],Y[alpha[i]:s],intercept=FALSE,
-        #                                  family="binomial",
-        #                                  nlambda=glmnet_nlambda, # ADDED
-        #                                  pmax=glmnet_pmax),     # ADDED
-        #                           s=c1*(sqrt(2*log(2*p)/(s-alpha[i]+1))+log(2*p)/(s-alpha[i]+1)))) # the estimation of regression coefficients
-        betahat22 <- safe_glmnet_coef(X[alpha[i]:s,], Y[alpha[i]:s], 
-                              c1*(sqrt(2*log(2*p)/(s-alpha[i]+1))+log(2*p)/(s-alpha[i]+1)))
-        # --- END MODIFICATION ---
-        # print("Passed 1/3 glmnet in bsa")
-        betahat33[s,]<-betahat22[-1]
-        # print("Reached 2/3 glmnet in bsa")
-        # --- START MODIFICATION: Added nlambda and pmax to glmnet calls ---
-        # betahat44<-as.vector(coef(glmnet(X[(s+1):(alpha[i+1]),],Y[(s+1):(alpha[i+1])],
-        #                                  intercept=FALSE,family="binomial",
-        #                                  nlambda=glmnet_nlambda, # ADDED
-        #                                  pmax=glmnet_pmax),     # ADDED
-        #                          s=c1*(sqrt(2*log(2*p)/(alpha[i+1]-s))+log(2*p)/(alpha[i+1]-s))))
-        betahat44 <- safe_glmnet_coef(X[(s+1):(alpha[i+1]),], Y[(s+1):(alpha[i+1])], 
-                              c1*(sqrt(2*log(2*p)/(alpha[i+1]-s))+log(2*p)/(alpha[i+1]-s)))
-        # --- END MODIFICATION ---
-        # print("Passed 2/3 glmnet in bsa")
-        betahat55[s,]<-betahat44[-1]
-
-        I<-rep(1,(alpha[i+1]-alpha[i]+1))
-        # print("Reached 3/3 glmnet in bsa")
-        # --- START MODIFICATION: Added nlambda and pmax to glmnet calls ---
-        # betahat66<-as.vector(coef(glmnet(X[alpha[i]:alpha[i+1],],Y[alpha[i]:alpha[i+1]],
-        #                                  intercept=FALSE,family="binomial",
-        #                                  nlambda=glmnet_nlambda, # ADDED
-        #                                  pmax=glmnet_pmax),     # ADDED
-        #                           s=c1*(sqrt(2*log(2*p)/(alpha[i+1]-alpha[i]+1))+log(2*p)/(alpha[i+1]-alpha[i]+1)))) # the estimation of regression coefficients
-        betahat66 <- safe_glmnet_coef(X[alpha[i]:alpha[i+1],], Y[alpha[i]:alpha[i+1]], 
-                              c1*(sqrt(2*log(2*p)/(alpha[i+1]-alpha[i]+1))+log(2*p)/(alpha[i+1]-alpha[i]+1)))
-        # --- END MODIFICATION ---
-        # print("Passed 3/3 glmnet in bsa")
-        hs[alpha[i]]<-sum(log(I+exp(X[alpha[i]:alpha[i+1],]%*%betahat66[-1]))-Y[alpha[i]:alpha[i+1]]*(X[alpha[i]:alpha[i+1],]%*%betahat66[-1]))/n
-        +delta*c1*(sqrt(2*log(2*p)/(alpha[i+1]-alpha[i]+1))+log(2*p)/(alpha[i+1]-alpha[i]+1))
-
-        I1=rep(1,(s-alpha[i]+1))
-        I2=rep(1,(alpha[i+1]-s))
-        # loss function
-        hs[s]=sum(log(I1+exp(X[alpha[i]:s,]%*%betahat33[s,]))
-                  -Y[alpha[i]:s]*(X[alpha[i]:s,]%*%betahat33[s,]))/n+
-          delta*c1*(sqrt(2*log(2*p)/(s-alpha[i]+1))+log(2*p)/(s-alpha[i]+1)) +
-          sum(log(I2+exp(X[(s+1):(alpha[i+1]),]%*%betahat55[s,]))
-              -Y[(s+1):(alpha[i+1])]*(X[(s+1):(alpha[i+1]),]%*%betahat55[s,]))/n+delta*c1*(sqrt(2*log(2*p)/(alpha[i+1]-s))+log(2*p)/(alpha[i+1]-s))
+  n <- length(Y)
+  p <- ncol(X)
+  alpha <- c(1, n)
+  shat  <- numeric()
+  
+  for (z in seq_len(kmax)) {
+    previous_alpha <- alpha
+    for (i in seq_len(length(previous_alpha) - 1)) {
+      start_i <- previous_alpha[i]
+      end_i   <- previous_alpha[i + 1]
+      if ((start_i + m1) > (end_i - m1)) next
+      
+      losses <- rep(Inf, end_i)
+      
+      # full-segment fit
+      len_full <- end_i - start_i + 1
+      λ_full   <- c1 * ( sqrt(2 * log(2 * p) / len_full) + log(2 * p) / len_full )
+      fit_full <- glmnet(
+        X[start_i:end_i, ], Y[start_i:end_i],
+        intercept = FALSE, family = "binomial",
+        lambda    = λ_full
+      )
+      beta_full <- as.vector(coef(fit_full))[-1]
+      I_full    <- rep(1, len_full)
+      losses[start_i] <- sum(log(I_full + exp(X[start_i:end_i, ] %*% beta_full)) -
+                             Y[start_i:end_i] * (X[start_i:end_i, ] %*% beta_full)) / n +
+                        delta * c1 * ( sqrt(2 * log(2 * p) / len_full) + log(2 * p) / len_full )
+      
+      # try every possible split
+      for (s in (start_i + m1):(end_i - m1)) {
+        # left segment
+        len_l   <- s - start_i + 1
+        λ_l     <- c1 * ( sqrt(2 * log(2 * p) / len_l) + log(2 * p) / len_l )
+        fit_l   <- glmnet(
+          X[start_i:s, ], Y[start_i:s],
+          intercept = FALSE, family = "binomial",
+          lambda    = λ_l
+        )
+        beta_l  <- as.vector(coef(fit_l))[-1]
+        I_l     <- rep(1, len_l)
+        loss_l  <- sum(log(I_l + exp(X[start_i:s, ] %*% beta_l)) -
+                       Y[start_i:s] * (X[start_i:s, ] %*% beta_l)) / n +
+                   delta * c1 * ( sqrt(2 * log(2 * p) / len_l) + log(2 * p) / len_l )
+        
+        # right segment
+        len_r   <- end_i - s
+        λ_r     <- c1 * ( sqrt(2 * log(2 * p) / len_r) + log(2 * p) / len_r )
+        fit_r   <- glmnet(
+          X[(s+1):end_i, ], Y[(s+1):end_i],
+          intercept = FALSE, family = "binomial",
+          lambda    = λ_r
+        )
+        beta_r  <- as.vector(coef(fit_r))[-1]
+        I_r     <- rep(1, len_r)
+        loss_r  <- sum(log(I_r + exp(X[(s+1):end_i, ] %*% beta_r)) -
+                       Y[(s+1):end_i] * (X[(s+1):end_i, ] %*% beta_r)) / n +
+                   delta * c1 * ( sqrt(2 * log(2 * p) / len_r) + log(2 * p) / len_r )
+        
+        losses[s] <- loss_l + loss_r
       }
-
-      shat[i]<-which.min(hs)
-
-      if (shat[i]==alpha[i]){
-        alpha=alpha }
-      else {alpha=sort(c(alpha,shat[i]))
-      alpha<-alpha[!duplicated(alpha)]}
+      
+      shat[i] <- which.min(losses)
+      if (shat[i] != start_i) {
+        alpha <- sort(unique(c(alpha, shat[i])))
+      }
     }
-    alphalength[z+1]=length(alpha)
-    if (alphalength[z]==alphalength[z+1])
-    {
-      break
-    }
+    # stop early if no new splits added
+    if (identical(alpha, previous_alpha)) break
   }
-  ##======= output change point estimator===============
-  print("Reached end of bsa_chgpt")
-  cpnumber.estimator<-length(alpha)-2 #change point number
-  cplocation.estimator<-rep(0,length(alpha))
-  cplocation.estimator<-alpha #change point location
-  list<-list(cpnumber.estimator=cpnumber.estimator,cplocation.estimator=cplocation.estimator)
-  return(list)
+  
+  cpnumber.estimator   <- length(alpha) - 2
+  cplocation.estimator <- alpha
+  return(list(
+    cpnumber.estimator   = cpnumber.estimator,
+    cplocation.estimator = cplocation.estimator
+  ))
 }
+
 
 #' This function provides change point estimation by Binary Segmentation Algorithm
 #' for the high dimensional generalized linear regression model.
@@ -182,124 +106,90 @@ bsa_chgpt<-function(X,Y,kmax,c1,m1,delta){
 #' @param m1 the sample size of the minimal interval.
 #' @param delta the minimal interval length specified by users.
 #' @return A list including: the estimated change point number, the estimated
-#'  change point locations.
+#'   change point locations.
 #' @importFrom stats coef
 #' @importFrom glmnet glmnet
 ######## change point estimation by bsa ########
-bsa_exactchgpt<-function(X,Y,kmax,c1,m1,delta){
+bsa_exactchgpt <- function(X, Y, kmax, c1, m1, delta) {
   print("Entered bsa_exactchgpt")
-  #1.Initialize T to the tree with a single root node labeled by (0; 1].
-  n<-length(Y)
-  v=length(Y)
-  u=1
-  p<-length(X[1,])
-  alpha<-c(u,v)
-  hs<-vector(mode="numeric",length=0L)
-  shat<-vector(mode="numeric",length=0L)
-  alphalength=vector(mode="numeric",length=0L)
-
-  # --- START ADDITION: Define glmnet control parameters ---
-  # These parameters help prevent internal integer overflows in glmnet.
-  # nlambda: number of lambda values to use in the regularization path.
-  # Default is 100. Reducing it might resolve issues if 100 is too high for certain p/n.
-  # pmax: maximum number of variables ever to be nonzero. Default is p.
-  # Explicitly setting it to p is generally safe and robust.
-  # glmnet_nlambda <- 10 # Standard default, can be reduced if needed (e.g., 50 or 20)
-  # glmnet_pmax <- min(p, 50)     # Explicitly set to the number of features 'p'
-  # In bsa_exactchgpt function, replace the parameter section with:
-  glmnet_nlambda <- 2   # Very conservative
-  glmnet_pmax <- 10     # Very conservative
-  print(paste("updated 4: glmnet_pmax is set to:", glmnet_pmax))
-  print(paste("updated 4: glmnet_nlambda is set to:", glmnet_nlambda))
-  print(paste("update 5: safe_glmnet"))
-  # Print what glmnet_pmax is
-  # --- END ADDITION ---
-
-  # The for loop below is the only difference between this function
-  # and bsachgpt. This function only searches through configs with
-  # exactly kmax chgpts.
+  n <- length(Y)
+  p <- ncol(X)
+  alpha <- c(1, n)
+  shat  <- numeric()
+  
+  # enforce exactly kmax splits
   for (z in kmax:kmax) {
-    alphalength[z]=length(alpha)
-    for (i in 1:(length(alpha)-1)){
-
-      for (s in (alpha[i]+m1):(alpha[i+1]-m1)){
-        if ((alpha[i]+m1)>(alpha[i+1]-m1)){
-          break
-        }
-
-        hs[1:(alpha[i]+m1)]<-rep(10000,(alpha[i]+m1))
-        betahat33<-matrix(0,nrow =(alpha[i+1]-m1),ncol = p)
-        betahat55<-matrix(0,nrow =(alpha[i+1]-m1),ncol = p)
-        # print("Reached 1/3 glmnet in bsa")
-        # --- START MODIFICATION: Added nlambda and pmax to glmnet calls ---
-        # betahat22<-as.vector(coef(glmnet(X[alpha[i]:s,],Y[alpha[i]:s],intercept=FALSE,
-        #                                  family="binomial",
-        #                                  nlambda=glmnet_nlambda, # ADDED
-        #                                  pmax=glmnet_pmax),     # ADDED
-        #                           s=c1*(sqrt(2*log(2*p)/(s-alpha[i]+1))+log(2*p)/(s-alpha[i]+1)))) # the estimation of regression coefficients
-        betahat22 <- safe_glmnet_coef(X[alpha[i]:s,], Y[alpha[i]:s], 
-                              c1*(sqrt(2*log(2*p)/(s-alpha[i]+1))+log(2*p)/(s-alpha[i]+1)))
-        # --- END MODIFICATION ---
-        # print("Passed 1/3 glmnet in bsa")
-        betahat33[s,]<-betahat22[-1]
-        # print("Reached 2/3 glmnet in bsa")
-        # --- START MODIFICATION: Added nlambda and pmax to glmnet calls ---
-        # betahat44<-as.vector(coef(glmnet(X[(s+1):(alpha[i+1]),],Y[(s+1):(alpha[i+1])],
-        #                                  intercept=FALSE,family="binomial",
-        #                                  nlambda=glmnet_nlambda, # ADDED
-        #                                  pmax=glmnet_pmax),     # ADDED
-        #                          s=c1*(sqrt(2*log(2*p)/(alpha[i+1]-s))+log(2*p)/(alpha[i+1]-s))))
-        betahat44 <- safe_glmnet_coef(X[(s+1):(alpha[i+1]),], Y[(s+1):(alpha[i+1])], 
-                              c1*(sqrt(2*log(2*p)/(alpha[i+1]-s))+log(2*p)/(alpha[i+1]-s)))
-        # --- END MODIFICATION ---
-        # print("Passed 2/3 glmnet in bsa")
-        betahat55[s,]<-betahat44[-1]
-
-        I<-rep(1,(alpha[i+1]-alpha[i]+1))
-        # print("Reached 3/3 glmnet in bsa")
-        # --- START MODIFICATION: Added nlambda and pmax to glmnet calls ---
-        # betahat66<-as.vector(coef(glmnet(X[alpha[i]:alpha[i+1],],Y[alpha[i]:alpha[i+1]],
-        #                                  intercept=FALSE,family="binomial",
-        #                                  nlambda=glmnet_nlambda, # ADDED
-        #                                  pmax=glmnet_pmax),     # ADDED
-        #                           s=c1*(sqrt(2*log(2*p)/(alpha[i+1]-alpha[i]+1))+log(2*p)/(alpha[i+1]-alpha[i]+1)))) # the estimation of regression coefficients
-        betahat66 <- safe_glmnet_coef(X[alpha[i]:alpha[i+1],], Y[alpha[i]:alpha[i+1]], 
-                              c1*(sqrt(2*log(2*p)/(alpha[i+1]-alpha[i]+1))+log(2*p)/(alpha[i+1]-alpha[i]+1)))
-        # --- END MODIFICATION ---
-        # print("Passed 3/3 glmnet in bsa")
-        hs[alpha[i]]<-sum(log(I+exp(X[alpha[i]:alpha[i+1],]%*%betahat66[-1]))-Y[alpha[i]:alpha[i+1]]*(X[alpha[i]:alpha[i+1],]%*%betahat66[-1]))/n
-        +delta*c1*(sqrt(2*log(2*p)/(alpha[i+1]-alpha[i]+1))+log(2*p)/(alpha[i+1]-alpha[i]+1))
-
-        I1=rep(1,(s-alpha[i]+1))
-        I2=rep(1,(alpha[i+1]-s))
-        # loss function
-        hs[s]=sum(log(I1+exp(X[alpha[i]:s,]%*%betahat33[s,]))
-                  -Y[alpha[i]:s]*(X[alpha[i]:s,]%*%betahat33[s,]))/n+
-          delta*c1*(sqrt(2*log(2*p)/(s-alpha[i]+1))+log(2*p)/(s-alpha[i]+1)) +
-          sum(log(I2+exp(X[(s+1):(alpha[i+1]),]%*%betahat55[s,]))
-              -Y[(s+1):(alpha[i+1])]*(X[(s+1):(alpha[i+1]),]%*%betahat55[s,]))/n+delta*c1*(sqrt(2*log(2*p)/(alpha[i+1]-s))+log(2*p)/(alpha[i+1]-s))
+    previous_alpha <- alpha
+    for (i in seq_len(length(previous_alpha) - 1)) {
+      start_i <- previous_alpha[i]
+      end_i   <- previous_alpha[i + 1]
+      if ((start_i + m1) > (end_i - m1)) next
+      
+      losses <- rep(Inf, end_i)
+      
+      # full-segment fit
+      len_full <- end_i - start_i + 1
+      λ_full   <- c1 * ( sqrt(2 * log(2 * p) / len_full) + log(2 * p) / len_full )
+      fit_full <- glmnet(
+        X[start_i:end_i, ], Y[start_i:end_i],
+        intercept = FALSE, family = "binomial",
+        lambda    = λ_full
+      )
+      beta_full <- as.vector(coef(fit_full))[-1]
+      I_full    <- rep(1, len_full)
+      losses[start_i] <- sum(log(I_full + exp(X[start_i:end_i, ] %*% beta_full)) -
+                             Y[start_i:end_i] * (X[start_i:end_i, ] %*% beta_full)) / n +
+                        delta * c1 * ( sqrt(2 * log(2 * p) / len_full) + log(2 * p) / len_full )
+      
+      # try every possible split
+      for (s in (start_i + m1):(end_i - m1)) {
+        # left segment
+        len_l   <- s - start_i + 1
+        λ_l     <- c1 * ( sqrt(2 * log(2 * p) / len_l) + log(2 * p) / len_l )
+        fit_l   <- glmnet(
+          X[start_i:s, ], Y[start_i:s],
+          intercept = FALSE, family = "binomial",
+          lambda    = λ_l
+        )
+        beta_l  <- as.vector(coef(fit_l))[-1]
+        I_l     <- rep(1, len_l)
+        loss_l  <- sum(log(I_l + exp(X[start_i:s, ] %*% beta_l)) -
+                       Y[start_i:s] * (X[start_i:s, ] %*% beta_l)) / n +
+                   delta * c1 * ( sqrt(2 * log(2 * p) / len_l) + log(2 * p) / len_l )
+        
+        # right segment
+        len_r   <- end_i - s
+        λ_r     <- c1 * ( sqrt(2 * log(2 * p) / len_r) + log(2 * p) / len_r )
+        fit_r   <- glmnet(
+          X[(s+1):end_i, ], Y[(s+1):end_i],
+          intercept = FALSE, family = "binomial",
+          lambda    = λ_r
+        )
+        beta_r  <- as.vector(coef(fit_r))[-1]
+        I_r     <- rep(1, len_r)
+        loss_r  <- sum(log(I_r + exp(X[(s+1):end_i, ] %*% beta_r)) -
+                       Y[(s+1):end_i] * (X[(s+1):end_i, ] %*% beta_r)) / n +
+                   delta * c1 * ( sqrt(2 * log(2 * p) / len_r) + log(2 * p) / len_r )
+        
+        losses[s] <- loss_l + loss_r
       }
-
-      shat[i]<-which.min(hs)
-
-      if (shat[i]==alpha[i]){
-        alpha=alpha }
-      else {alpha=sort(c(alpha,shat[i]))
-      alpha<-alpha[!duplicated(alpha)]}
+      
+      shat[i] <- which.min(losses)
+      if (shat[i] != start_i) {
+        alpha <- sort(unique(c(alpha, shat[i])))
+      }
     }
-    alphalength[z+1]=length(alpha)
-    if (alphalength[z]==alphalength[z+1])
-    {
-      break
-    }
+    # break if no change
+    if (identical(alpha, previous_alpha)) break
   }
-  ##======= output change point estimator===============
+  
   print("Reached end of bsa_exactchgpt")
-  cpnumber.estimator<-length(alpha)-2 #change point number
-  cplocation.estimator<-rep(0,length(alpha))
-  cplocation.estimator<-alpha #change point location
-  list<-list(cpnumber.estimator=cpnumber.estimator,cplocation.estimator=cplocation.estimator)
-  return(list)
+  cpnumber.estimator   <- length(alpha) - 2
+  cplocation.estimator <- alpha
+  return(list(
+    cpnumber.estimator   = cpnumber.estimator,
+    cplocation.estimator = cplocation.estimator
+  ))
 }
 
 #' This function wraps around bsachgpt.
@@ -311,34 +201,34 @@ bsa_exactchgpt<-function(X,Y,kmax,c1,m1,delta){
 #' @param Sigma pxp covariance of rows of X
 #' @param kmax the maximum change point number.
 #' @param delta the minimal interval length specified by users.
-#' @return A list including: the estimated change point number, the estimated
-#'  change point locations.
+#' @return  A list including: the estimated change point number, the estimated
+#'   change point locations.
 bsawrapper<-function(n, p, Sigma, kmax, delta){
   #=================== initial settings====================
-  # n=200    # sample size
-  # p=10  # data dimension
-  # Sigma<-matrix(0,nrow = p,ncol = p)  #covariance matrix
+  # n=200       # sample size 
+  # p=10    # data dimension
+  # Sigma<-matrix(0,nrow = p,ncol = p)   #covariance matrix 
   # for (i in 1:p){
-  #  for (j in 1:p){
-  #   Sigma[i,j]<-0.6^(abs(i-j))
-  #  }
+  #   for (j in 1:p){
+  #     Sigma[i,j]<-0.6^(abs(i-j))
+  #   }
   # }
   print("Entered bsawrapper")
-  tau0<-0.5 # true change point location
-  # kmax=6  # upper bound of the number of change point
+  tau0<-0.5  # true change point location
+  # kmax=6   # upper bound of the number of change point
   #==== tuning parameter(specifed by users)==========
-  # delta=0.1 # fractional length of the shortest interval
+  # delta=0.1  # fractional length of the shortest interval 
   # (i.e. distance between nearest adjacent changepoints as a fraction of n)
   c1<-0.18 # lambda related parameter
   #===============signal jump size==================
-  m1=ceiling(n*delta)  # size of the shortest interval
-  signaljump<-20*sqrt(log(p)/(delta*n)) # signal jump
+  m1=ceiling(n*delta)   # size of the shortest interval
+  signaljump<-20*sqrt(log(p)/(delta*n))  # signal jump
   signalsupport<-ceiling(log(p))
   signalsupport.range<-0.3*p
 
   #===============generating change point model settings============
-  beta1<-rep(0,p)  # regression coefficient 1
-  beta2<-rep(0,p)  # regression coefficient 2
+  beta1<-rep(0,p)   #  regression coefficient 1
+  beta2<-rep(0,p)   #  regression coefficient 2
   for (i in sample(1:(signalsupport.range),signalsupport)) {
     beta1[i]<-runif(1,min=0,max=2)
   }
@@ -346,10 +236,10 @@ bsawrapper<-function(n, p, Sigma, kmax, delta){
     beta2[i]<-runif(1,min=0,max=2)+runif(1,min=0.5,max=signaljump)
   }
 
-  X<-mvrnorm(n,rep(0,p),Sigma) # design matrix
-  error<-rnorm(n)   # error term
-  Y1<-vector(mode = "numeric",length=0L) # response variable before change point
-  Y2<-vector(mode = "numeric",length=0L) # response variable after change point
+  X<-mvrnorm(n,rep(0,p),Sigma)  # design matrix
+  error<-rnorm(n)      # error term
+  Y1<-vector(mode = "numeric",length=0L)  # response variable before change point
+  Y2<-vector(mode = "numeric",length=0L)  # response variable after change point
   O1<-vector(mode = "numeric",length=0L)
   O2<-vector(mode = "numeric",length=0L)
   R1=X[1:(tau0*n),]%*%beta1+error[1:(tau0*n)]
@@ -361,7 +251,7 @@ bsawrapper<-function(n, p, Sigma, kmax, delta){
     Y2[i]=rbinom(1,1,O2[i])
   }
 
-  Y=c(Y1,Y2)  # response variable
+  Y=c(Y1,Y2)   # response variable 
 
 
   #=======estimate change points by bsa=======
@@ -386,28 +276,28 @@ bsawrapper<-function(n, p, Sigma, kmax, delta){
 #' @param Y an n dimensional data vector, n=observation
 #' @param kmax the maximum change point number.
 #' @param delta the minimal interval length specified by users.
-#' @return A list including: the estimated change point number, the estimated
-#'  change point locations.
+#' @return  A list including: the estimated change point number, the estimated
+#'   change point locations.
 bsa_wrapper<-function(X, Y, kmax, delta){
   #=================== initial settings====================
-  # n=200    # sample size
-  # p=10  # data dimension
-  # Sigma<-matrix(0,nrow = p,ncol = p)  #covariance matrix
+  # n=200       # sample size 
+  # p=10    # data dimension
+  # Sigma<-matrix(0,nrow = p,ncol = p)   #covariance matrix 
   # for (i in 1:p){
-  #  for (j in 1:p){
-  #   Sigma[i,j]<-0.6^(abs(i-j))
-  #  }
+  #   for (j in 1:p){
+  #     Sigma[i,j]<-0.6^(abs(i-j))
+  #   }
   # }
   print("Entered bsa_wrapper")
   n<-length(Y)
-  # tau0<-0.5 # true change point location
-  # kmax=6  # upper bound of the number of change point
+  # tau0<-0.5  # true change point location
+  # kmax=6   # upper bound of the number of change point
   #==== tuning parameter(specifed by users)==========
-  # delta=0.1 # fractional length of the shortest interval
+  # delta=0.1  # fractional length of the shortest interval 
   # (i.e. distance between nearest adjacent changepoints as a fraction of n)
   c1<-0.18 # lambda related parameter
   #===============signal jump size==================
-  m1=ceiling(n*delta)  # size of the shortest interval
+  m1=ceiling(n*delta)   # size of the shortest interval
 
   #=======estimate change points by bsa=======
   reg<-bsa_chgpt(X,Y,kmax,c1,m1,delta)
@@ -431,29 +321,29 @@ bsa_wrapper<-function(X, Y, kmax, delta){
 #' @param Y an n dimensional data vector, n=observation
 #' @param kmax the maximum change point number.
 #' @param delta the minimal interval length specified by users.
-#' @return A list including: the estimated change point number, the estimated
-#'  change point locations.
+#' @return  A list including: the estimated change point number, the estimated
+#'   change point locations.
 bsa_exact_wrapper<-function(X, Y, kmax, delta){
   #=================== initial settings====================
-  # n=200    # sample size
-  # p=10  # data dimension
-  # Sigma<-matrix(0,nrow = p,ncol = p)  #covariance matrix
+  # n=200       # sample size 
+  # p=10    # data dimension
+  # Sigma<-matrix(0,nrow = p,ncol = p)   #covariance matrix 
   # for (i in 1:p){
-  #  for (j in 1:p){
-  #   Sigma[i,j]<-0.6^(abs(i-j))
-  #  }
+  #   for (j in 1:p){
+  #     Sigma[i,j]<-0.6^(abs(i-j))
+  #   }
   # }
   print("Entered bsa_exact_wrapper")
   n<-length(Y)
-  # tau0<-0.5 # true change point location
-  # kmax=6  # upper bound of the number of change point
+  # tau0<-0.5  # true change point location
+  # kmax=6   # upper bound of the number of change point
   #==== tuning parameter(specifed by users)==========
-  # delta=0.1 # fractional length of the shortest interval
+  # delta=0.1  # fractional length of the shortest interval 
   # (i.e. distance between nearest adjacent changepoints as a fraction of n)
   c1<-0.18 # lambda related parameter
   #===============signal jump size==================
-  m1=ceiling(n*delta)  # size of the shortest interval
-
+  m1=ceiling(n*delta)   # size of the shortest interval
+  
   #=======estimate change points by bsa=======
   reg<-bsa_exactchgpt(X,Y,kmax,c1,m1,delta)
   cpnumber<-reg$cpnumber.estimator
