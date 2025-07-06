@@ -4,193 +4,148 @@ library(MASS)
 #' This function provides change point estimation by Binary Segmentation Algorithm
 #' for the high dimensional generalized linear regression model.
 #' @export
-#' @param X an n*p data matrix, n=observation, p=dimension
-#' @param Y an n dimensional data vector, n=observation
-#' @param kmax the maximum change point number.
-#' @param c1 a constant specified by users.
-#' @param m1 the sample size of the minimal interval.
-#' @param delta the minimal interval length specified by users.
-#' @return A list including: the estimated change point number, the estimated
-#'   change point locations.
+#' @param X an n*p data matrix, n = number of observations, p = dimension
+#' @param Y an n-length response vector
+#' @param kmax the maximum number of change points to search for
+#' @param c1 a tuning constant for the penalty
+#' @param m1 the minimal segment length (in samples)
+#' @param delta the fractional minimal length (so that m1 = ceiling(n * delta))
+#' @return A list with components\n#'   • cpnumber.estimator: estimated number of change points\n#'   • cplocation.estimator: vector of the estimated change-point locations
 #' @importFrom stats coef
 #' @importFrom glmnet glmnet
-######## change point estimation by bsa ########
 bsa_chgpt <- function(X, Y, kmax, c1, m1, delta) {
-  print("Entered bsa_chgpt")
-  n <- length(Y)
-  p <- ncol(X)
-  alpha <- c(1, n)
-  shat  <- numeric()
+  message(">> Running UPDATED bsa_chgpt()")
+  message("   Inputs: kmax=", kmax, "  c1=", c1, "  m1=", m1, "  delta=", delta)
+  
+  n     <- length(Y)
+  p     <- ncol(X)
+  alpha <- c(1, n)      # initial segmentation at 1 and n
   
   for (z in seq_len(kmax)) {
-    previous_alpha <- alpha
-    for (i in seq_len(length(previous_alpha) - 1)) {
-      start_i <- previous_alpha[i]
-      end_i   <- previous_alpha[i + 1]
-      if ((start_i + m1) > (end_i - m1)) next
+    old_alpha <- alpha
+    for (i in seq_len(length(old_alpha) - 1)) {
+      a <- old_alpha[i]
+      b <- old_alpha[i + 1]
+      if ((a + m1) > (b - m1)) next
       
-      losses <- rep(Inf, end_i)
-      
-      # full-segment fit
-      len_full <- end_i - start_i + 1
-      λ_full   <- c1 * ( sqrt(2 * log(2 * p) / len_full) + log(2 * p) / len_full )
-      fit_full <- glmnet(
-        X[start_i:end_i, ], Y[start_i:end_i],
-        intercept = FALSE, family = "binomial",
-        lambda    = λ_full
-      )
-      beta_full <- as.vector(coef(fit_full))[-1]
-      I_full    <- rep(1, len_full)
-      losses[start_i] <- sum(log(I_full + exp(X[start_i:end_i, ] %*% beta_full)) -
-                             Y[start_i:end_i] * (X[start_i:end_i, ] %*% beta_full)) / n +
-                        delta * c1 * ( sqrt(2 * log(2 * p) / len_full) + log(2 * p) / len_full )
-      
-      # try every possible split
-      for (s in (start_i + m1):(end_i - m1)) {
-        # left segment
-        len_l   <- s - start_i + 1
-        λ_l     <- c1 * ( sqrt(2 * log(2 * p) / len_l) + log(2 * p) / len_l )
-        fit_l   <- glmnet(
-          X[start_i:s, ], Y[start_i:s],
-          intercept = FALSE, family = "binomial",
-          lambda    = λ_l
-        )
-        beta_l  <- as.vector(coef(fit_l))[-1]
-        I_l     <- rep(1, len_l)
-        loss_l  <- sum(log(I_l + exp(X[start_i:s, ] %*% beta_l)) -
-                       Y[start_i:s] * (X[start_i:s, ] %*% beta_l)) / n +
-                   delta * c1 * ( sqrt(2 * log(2 * p) / len_l) + log(2 * p) / len_l )
+      losses <- rep(Inf, b)
+      for (s in (a + m1):(b - m1)) {
+        len_l <- s - a + 1
+        lam_l <- c1*( sqrt(2*log(2*p)/len_l) + log(2*p)/len_l )
+        fit_l <- glmnet(X[a:s, ], Y[a:s], intercept=FALSE, family="binomial", lambda=lam_l)
+        beta_l <- as.vector(coef(fit_l))[-1]
+        I_l    <- rep(1, len_l)
+        loss_l <- sum(log(I_l + exp(X[a:s, ] %*% beta_l)) -
+                      Y[a:s] * (X[a:s, ] %*% beta_l)) / n + delta*lam_l
         
-        # right segment
-        len_r   <- end_i - s
-        λ_r     <- c1 * ( sqrt(2 * log(2 * p) / len_r) + log(2 * p) / len_r )
-        fit_r   <- glmnet(
-          X[(s+1):end_i, ], Y[(s+1):end_i],
-          intercept = FALSE, family = "binomial",
-          lambda    = λ_r
-        )
-        beta_r  <- as.vector(coef(fit_r))[-1]
-        I_r     <- rep(1, len_r)
-        loss_r  <- sum(log(I_r + exp(X[(s+1):end_i, ] %*% beta_r)) -
-                       Y[(s+1):end_i] * (X[(s+1):end_i, ] %*% beta_r)) / n +
-                   delta * c1 * ( sqrt(2 * log(2 * p) / len_r) + log(2 * p) / len_r )
+        len_r <- b - s
+        lam_r <- c1*( sqrt(2*log(2*p)/len_r) + log(2*p)/len_r )
+        fit_r <- glmnet(X[(s+1):b, ], Y[(s+1):b], intercept=FALSE, family="binomial", lambda=lam_r)
+        beta_r <- as.vector(coef(fit_r))[-1]
+        I_r    <- rep(1, len_r)
+        loss_r <- sum(log(I_r + exp(X[(s+1):b, ] %*% beta_r)) -
+                      Y[(s+1):b] * (X[(s+1):b, ] %*% beta_r)) / n + delta*lam_r
         
         losses[s] <- loss_l + loss_r
       }
       
-      shat[i] <- which.min(losses)
-      if (shat[i] != start_i) {
-        alpha <- sort(unique(c(alpha, shat[i])))
+      s_best <- which.min(losses)
+      if (s_best != a) {
+        alpha <- sort(unique(c(alpha, s_best)))
       }
     }
-    # stop early if no new splits added
-    if (identical(alpha, previous_alpha)) break
+    if (identical(alpha, old_alpha)) {
+      message(">> No new splits at iteration ", z, "; stopping early.")
+      break
+    }
   }
   
   cpnumber.estimator   <- length(alpha) - 2
   cplocation.estimator <- alpha
-  return(list(
-    cpnumber.estimator   = cpnumber.estimator,
-    cplocation.estimator = cplocation.estimator
-  ))
+  message(">> bsa_chgpt complete: found ", cpnumber.estimator, " change points at ", paste(alpha, collapse=", "))
+  list(cpnumber.estimator = cpnumber.estimator,
+       cplocation.estimator = cplocation.estimator)
 }
 
 
 #' This function provides change point estimation by Binary Segmentation Algorithm
-#' for the high dimensional generalized linear regression model.
+#' for the high dimensional generalized linear regression model,
+#' enforcing exactly kmax change points.
 #' @export
-#' @param X an n*p data matrix, n=observation, p=dimension
-#' @param Y an n dimensional data vector, n=observation
-#' @param kmax the maximum change point number.
-#' @param c1 a constant specified by users.
-#' @param m1 the sample size of the minimal interval.
-#' @param delta the minimal interval length specified by users.
-#' @return A list including: the estimated change point number, the estimated
-#'   change point locations.
+#' @param X an n*p data matrix, n = number of observations, p = dimension
+#' @param Y an n-length response vector
+#' @param kmax the exact number of change points to estimate
+#' @param c1 a tuning constant for the penalty
+#' @param m1 the minimal segment length (in samples)
+#' @param delta the fractional minimal length (so that m1 = ceiling(n * delta))
+#' @return A list with components\n#'   • cpnumber.estimator: estimated number of change points (should equal kmax)\n#'   • cplocation.estimator: vector of the estimated change-point locations
 #' @importFrom stats coef
 #' @importFrom glmnet glmnet
-######## change point estimation by bsa ########
 bsa_exactchgpt <- function(X, Y, kmax, c1, m1, delta) {
-  print("Entered bsa_exactchgpt")
-  n <- length(Y)
-  p <- ncol(X)
-  alpha <- c(1, n)
-  shat  <- numeric()
+  message(">> Running UPDATED bsa_exactchgpt()")
+  message("   Inputs: kmax=", kmax, "  c1=", c1, "  m1=", m1, "  delta=", delta)
   
-  # enforce exactly kmax splits
+  n     <- length(Y)
+  p     <- ncol(X)
+  alpha <- c(1, n)
+  
   for (z in kmax:kmax) {
-    previous_alpha <- alpha
-    for (i in seq_len(length(previous_alpha) - 1)) {
-      start_i <- previous_alpha[i]
-      end_i   <- previous_alpha[i + 1]
-      if ((start_i + m1) > (end_i - m1)) next
+    old_alpha <- alpha
+    for (i in seq_len(length(old_alpha) - 1)) {
+      a <- old_alpha[i]
+      b <- old_alpha[i + 1]
+      if ((a + m1) > (b - m1)) next
       
-      losses <- rep(Inf, end_i)
-      
-      # full-segment fit
-      len_full <- end_i - start_i + 1
-      λ_full   <- c1 * ( sqrt(2 * log(2 * p) / len_full) + log(2 * p) / len_full )
-      fit_full <- glmnet(
-        X[start_i:end_i, ], Y[start_i:end_i],
-        intercept = FALSE, family = "binomial",
-        lambda    = λ_full
-      )
+      losses <- rep(Inf, b)
+      # full-segment loss
+      len_full <- b - a + 1
+      lam_full <- c1*( sqrt(2*log(2*p)/len_full) + log(2*p)/len_full )
+      fit_full <- glmnet(X[a:b, ], Y[a:b], intercept=FALSE, family="binomial", lambda=lam_full)
       beta_full <- as.vector(coef(fit_full))[-1]
       I_full    <- rep(1, len_full)
-      losses[start_i] <- sum(log(I_full + exp(X[start_i:end_i, ] %*% beta_full)) -
-                             Y[start_i:end_i] * (X[start_i:end_i, ] %*% beta_full)) / n +
-                        delta * c1 * ( sqrt(2 * log(2 * p) / len_full) + log(2 * p) / len_full )
+      losses[a] <- sum(log(I_full + exp(X[a:b, ] %*% beta_full)) -
+                       Y[a:b] * (X[a:b, ] %*% beta_full)) / n + delta*lam_full
       
-      # try every possible split
-      for (s in (start_i + m1):(end_i - m1)) {
-        # left segment
-        len_l   <- s - start_i + 1
-        λ_l     <- c1 * ( sqrt(2 * log(2 * p) / len_l) + log(2 * p) / len_l )
-        fit_l   <- glmnet(
-          X[start_i:s, ], Y[start_i:s],
-          intercept = FALSE, family = "binomial",
-          lambda    = λ_l
-        )
-        beta_l  <- as.vector(coef(fit_l))[-1]
-        I_l     <- rep(1, len_l)
-        loss_l  <- sum(log(I_l + exp(X[start_i:s, ] %*% beta_l)) -
-                       Y[start_i:s] * (X[start_i:s, ] %*% beta_l)) / n +
-                   delta * c1 * ( sqrt(2 * log(2 * p) / len_l) + log(2 * p) / len_l )
+      # split candidates
+      for (s in (a + m1):(b - m1)) {
+        len_l <- s - a + 1
+        lam_l <- c1*( sqrt(2*log(2*p)/len_l) + log(2*p)/len_l )
+        fit_l <- glmnet(X[a:s, ], Y[a:s], intercept=FALSE, family="binomial", lambda=lam_l)
+        beta_l <- as.vector(coef(fit_l))[-1]
+        I_l    <- rep(1, len_l)
+        loss_l <- sum(log(I_l + exp(X[a:s, ] %*% beta_l)) -
+                      Y[a:s] * (X[a:s, ] %*% beta_l)) / n + delta*lam_l
         
-        # right segment
-        len_r   <- end_i - s
-        λ_r     <- c1 * ( sqrt(2 * log(2 * p) / len_r) + log(2 * p) / len_r )
-        fit_r   <- glmnet(
-          X[(s+1):end_i, ], Y[(s+1):end_i],
-          intercept = FALSE, family = "binomial",
-          lambda    = λ_r
-        )
-        beta_r  <- as.vector(coef(fit_r))[-1]
-        I_r     <- rep(1, len_r)
-        loss_r  <- sum(log(I_r + exp(X[(s+1):end_i, ] %*% beta_r)) -
-                       Y[(s+1):end_i] * (X[(s+1):end_i, ] %*% beta_r)) / n +
-                   delta * c1 * ( sqrt(2 * log(2 * p) / len_r) + log(2 * p) / len_r )
+        len_r <- b - s
+        lam_r <- c1*( sqrt(2*log(2*p)/len_r) + log(2*p)/len_r )
+        fit_r <- glmnet(X[(s+1):b, ], Y[(s+1):b], intercept=FALSE, family="binomial", lambda=lam_r)
+        beta_r <- as.vector(coef(fit_r))[-1]
+        I_r    <- rep(1, len_r)
+        loss_r <- sum(log(I_r + exp(X[(s+1):b, ] %*% beta_r)) -
+                      Y[(s+1):b] * (X[(s+1):b, ] %*% beta_r)) / n + delta*lam_r
         
         losses[s] <- loss_l + loss_r
       }
       
-      shat[i] <- which.min(losses)
-      if (shat[i] != start_i) {
-        alpha <- sort(unique(c(alpha, shat[i])))
+      s_best <- which.min(losses)
+      if (s_best != a) {
+        alpha <- sort(unique(c(alpha, s_best)))
       }
     }
-    # break if no change
-    if (identical(alpha, previous_alpha)) break
+    if (identical(alpha, old_alpha)) {
+      message(">> No new splits (exact) on forced iteration; stopping.")
+      break
+    }
   }
   
-  print("Reached end of bsa_exactchgpt")
   cpnumber.estimator   <- length(alpha) - 2
   cplocation.estimator <- alpha
-  return(list(
-    cpnumber.estimator   = cpnumber.estimator,
-    cplocation.estimator = cplocation.estimator
-  ))
+  message(">> bsa_exactchgpt complete: found ", cpnumber.estimator,
+          " change points at ", paste(alpha, collapse=", "))
+  list(cpnumber.estimator = cpnumber.estimator,
+       cplocation.estimator = cplocation.estimator)
 }
+
 
 #' This function wraps around bsachgpt.
 #' @export
